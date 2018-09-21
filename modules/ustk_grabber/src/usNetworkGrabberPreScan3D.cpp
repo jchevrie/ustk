@@ -187,7 +187,8 @@ void usNetworkGrabberPreScan3D::dataArrived()
     m_motorSettings.setMotorRadius(m_imageHeader.motorRadius);
 
     // set data info
-    m_grabbedImage.setFrameCount(m_imageHeader.frameCount>1?(m_imageHeader.frameCount-1):0);
+    m_grabbedImage.setFrameCount(m_imageHeader.frameCount>1?(m_imageHeader.frameCount-1):0); // TO FIX: this line is a work-around to cancel the 2-frames offset introduced by the UsTK server (on Ultrasonix station) and reduce it to a 1-frame offsett
+    //m_grabbedImage.setFrameCount(m_imageHeader.frameCount); // initial line before the work-around
     m_grabbedImage.setFramesPerVolume(m_imageHeader.framesPerVolume);
 
     m_grabbedImage.setTimeStamp(m_imageHeader.timeStamp);
