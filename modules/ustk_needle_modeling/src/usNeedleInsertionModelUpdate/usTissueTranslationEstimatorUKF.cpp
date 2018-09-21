@@ -43,10 +43,14 @@ usTissueTranslationEstimatorUKF::usTissueTranslationEstimatorUKF():
     m_var_measure_t(1e-6),
     m_var_process_p(1e-3),
     m_var_process_v(0),
+    m_var_process_a(1e-3),
+    m_var_process_f(1e-2),
+    m_var_process_phi(1e-1),
     m_stateDynamicsType(usTissueTranslationEstimatorUKF::CONSTANT_POSITION),
     m_tissueTranslationType(usTissueTranslationEstimatorUKF::LATERAL_TRANSLATIONS_ONLY),
     m_measureType(usTissueTranslationEstimatorUKF::NEEDLE_BODY_POINTS),
     m_propagationTime(0),
+    m_lastMeasureTime(0),
     m_needle()
 {
     this->setStateDimension(3);
@@ -119,6 +123,36 @@ void usTissueTranslationEstimatorUKF::setTissueVelocityProcessNoiseVariance(doub
     if(sigma >= 0) m_var_process_v = sigma;
 }
 
+double usTissueTranslationEstimatorUKF::getTissueSinusoidalAmplitudeProcessNoiseVariance() const
+{
+    return m_var_process_a;
+}
+
+void usTissueTranslationEstimatorUKF::setTissueSinusoidalAmplitudeProcessNoiseVariance(double sigma)
+{
+    if(sigma >= 0) m_var_process_a = sigma;
+}
+
+double usTissueTranslationEstimatorUKF::getTissueSinusoidalFrequencyProcessNoiseVariance() const
+{
+    return m_var_process_f;
+}
+
+void usTissueTranslationEstimatorUKF::setTissueSinusoidalFrequencyProcessNoiseVariance(double sigma)
+{
+    if(sigma >= 0) m_var_process_f = sigma;
+}
+
+double usTissueTranslationEstimatorUKF::getTissueSinusoidalPhaseProcessNoiseVariance() const
+{
+    return m_var_process_phi;
+}
+
+void usTissueTranslationEstimatorUKF::setTissueSinusoidalPhaseProcessNoiseVariance(double sigma)
+{
+    if(sigma >= 0) m_var_process_phi = sigma;
+}
+
 usTissueTranslationEstimatorUKF::StateDynamicsType usTissueTranslationEstimatorUKF::getStateDynamicsType() const
 {
     return m_stateDynamicsType;
@@ -138,6 +172,11 @@ void usTissueTranslationEstimatorUKF::setStateDynamicsType(usTissueTranslationEs
         case usTissueTranslationEstimatorUKF::CONSTANT_VELOCITY:
         {
             this->setStateDimension(6);
+            break;
+        }
+        case usTissueTranslationEstimatorUKF::SINUSOIDAL_POSITION:
+        {
+            this->setStateDimension(11);
             break;
         }
     }
@@ -168,6 +207,16 @@ void usTissueTranslationEstimatorUKF::setMeasureType(usTissueTranslationEstimato
 void usTissueTranslationEstimatorUKF::setPropagationTime(double time)
 {
     m_propagationTime = time;
+}
+
+double usTissueTranslationEstimatorUKF::getLastMeasureTime() const
+{
+    return m_lastMeasureTime;
+}
+
+void usTissueTranslationEstimatorUKF::setLastMeasureTime(double time)
+{
+    m_lastMeasureTime = time;
 }
 
 void usTissueTranslationEstimatorUKF::setCurrentNeedle(const usNeedleInsertionModelRayleighRitzSpline& needle)
@@ -224,6 +273,15 @@ void usTissueTranslationEstimatorUKF::computeProcessNoiseCovarianceMatrix()
             m_processNoiseCovarianceMatrix.insert(m_var_process_v * normalizedCovarianceMatrix, 3,3);
             break;
         }
+        case usTissueTranslationEstimatorUKF::SINUSOIDAL_POSITION:
+        {
+            m_processNoiseCovarianceMatrix.resize(11,11);
+            m_processNoiseCovarianceMatrix.insert(m_var_process_p * normalizedCovarianceMatrix, 3,3);
+            m_processNoiseCovarianceMatrix.insert(m_var_process_a * normalizedCovarianceMatrix, 6,6);
+            m_processNoiseCovarianceMatrix[9][9] = m_var_process_f;
+            m_processNoiseCovarianceMatrix[10][10] = m_var_process_phi;
+            break;
+        }
     }
 }
 
@@ -274,9 +332,21 @@ vpColVector usTissueTranslationEstimatorUKF::propagateSigmaPoint(const vpColVect
             for(int i=0 ; i<3 ; i++) propagatedSigmaPoint[i] += m_propagationTime * propagatedSigmaPoint[i+3];
             return propagatedSigmaPoint;
         }
+        case usTissueTranslationEstimatorUKF::SINUSOIDAL_POSITION:
+        {
+            vpColVector propagatedSigmaPoint(sigmaPoint);
+            if(propagatedSigmaPoint[9] < 0) propagatedSigmaPoint[9] = 0;
+            for(int i=0 ; i<3 ; i++)
+			{
+                if(propagatedSigmaPoint[i+6] < 0) propagatedSigmaPoint[i+6] = 0;
+
+				propagatedSigmaPoint[i] = propagatedSigmaPoint[i+3] + propagatedSigmaPoint[i+6] * sin(2*M_PI * propagatedSigmaPoint[9] * (m_lastMeasureTime + m_propagationTime) + propagatedSigmaPoint[10]);
+            }
+            return propagatedSigmaPoint;
+        }
         default:
         {
-          return sigmaPoint;
+            return sigmaPoint;
         }
     }
 }
@@ -351,6 +421,10 @@ double usTissueTranslationEstimatorUKF::stateNorm(const vpColVector &state) cons
         case usTissueTranslationEstimatorUKF::CONSTANT_VELOCITY:
         {
             return vpColVector(state, 0,3).euclideanNorm() + m_propagationTime * vpColVector(state, 3,3).euclideanNorm();
+        }
+        case usTissueTranslationEstimatorUKF::SINUSOIDAL_POSITION:
+        {
+            return vpColVector(state, 0,3).euclideanNorm() + vpColVector(state, 3,3).euclideanNorm() + vpColVector(state, 6,3).euclideanNorm();
         }  
         default:
         {

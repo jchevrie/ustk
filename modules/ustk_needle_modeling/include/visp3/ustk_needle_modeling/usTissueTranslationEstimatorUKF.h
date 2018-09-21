@@ -50,7 +50,7 @@ class VISP_EXPORT usTissueTranslationEstimatorUKF : public usUnscentedKalmanFilt
 {
 public:
     
-    enum StateDynamicsType : int {CONSTANT_POSITION, CONSTANT_VELOCITY};
+    enum StateDynamicsType : int {CONSTANT_POSITION, CONSTANT_VELOCITY, SINUSOIDAL_POSITION};
     enum TissueTranslationType : int {LATERAL_TRANSLATIONS_ONLY, FULL_TRANSLATIONS};
     enum MeasureType : int {NEEDLE_BODY_POINTS, TIP_POSITION_AND_DIRECTION, BASE_FORCE_TORQUE};
     
@@ -60,11 +60,15 @@ public:
     double m_var_measure_t;
     double m_var_process_p;
     double m_var_process_v;
+    double m_var_process_a;
+    double m_var_process_f;
+    double m_var_process_phi;
     StateDynamicsType m_stateDynamicsType;
     TissueTranslationType m_tissueTranslationType;
     MeasureType m_measureType;
     
     double m_propagationTime;
+    double m_lastMeasureTime;
 
     usNeedleInsertionModelRayleighRitzSpline m_needle;
 
@@ -89,6 +93,15 @@ public:
     
     double getTissueVelocityProcessNoiseVariance() const;
     void setTissueVelocityProcessNoiseVariance(double sigma);
+
+    double getTissueSinusoidalAmplitudeProcessNoiseVariance() const;
+    void setTissueSinusoidalAmplitudeProcessNoiseVariance(double sigma);
+
+    double getTissueSinusoidalFrequencyProcessNoiseVariance() const;
+    void setTissueSinusoidalFrequencyProcessNoiseVariance(double sigma);
+
+    double getTissueSinusoidalPhaseProcessNoiseVariance() const;
+    void setTissueSinusoidalPhaseProcessNoiseVariance(double sigma);
     
     StateDynamicsType getStateDynamicsType() const;
     void setStateDynamicsType(StateDynamicsType type);
@@ -100,6 +113,8 @@ public:
     void setMeasureType(MeasureType type);
     
     void setPropagationTime(double time);
+    double getLastMeasureTime() const;
+    void setLastMeasureTime(double time);
     
     void setCurrentNeedle(const usNeedleInsertionModelRayleighRitzSpline& needle);
     void applyStateToNeedle(usNeedleInsertionModelRayleighRitzSpline& needle) const;
