@@ -99,6 +99,11 @@ void usMetaHeaderParser::readMHDHeader(const std::string &fileName)
   this->header.transmitFrequency = 0;
   this->header.timestamp.clear();
 
+  this->m_axialResolution = 0;
+  this->m_heightResolution = 0;
+  this->m_widthResolution = 0;
+  this->m_sweepInZDirection = true;
+
   std::ifstream file;
   file.open(fileName.c_str(), std::ifstream::in);
 
@@ -228,6 +233,14 @@ void usMetaHeaderParser::readMHDHeader(const std::string &fileName)
         this->header.motorType = usMotorSettings::RotationalMotor;
       } else {
         throw(vpException(vpException::badValue, "Unknown motor type"));
+      }
+    } else if (keyword == "SweepInZDirection") {
+      if (this->header.imageType != us::PRESCAN_3D) {
+        throw(vpException(vpException::badValue,
+                          "bad header file : trying to assign sweeping direction to a non pre-scan 3D image"));
+      } else {
+        file >> this->m_sweepInZDirection;
+        std::getline(file, keyval, '\n');
       }
     } else if (keyword == "AxialResolution") {
       if (this->header.imageType == us::POSTSCAN_2D || this->header.imageType == us::POSTSCAN_3D) {
@@ -456,6 +469,8 @@ void usMetaHeaderParser::parse()
                 << "RotationalMotor"
                 << "\n";
       }
+      MHDfile << "Comment = Only in 3d. Direction of sweeping of the probe motor. 1 in Z direction.\n";
+      MHDfile << "SweepInZDirection = " << this->m_sweepInZDirection << "\n";
       MHDfile << "Comment = Only in 3d. Radius between the probe motor center and the first pixel of each line "
                  "acquired. 0 if linear motor.\n";
       MHDfile << "MotorRadius = " << header.motorRadius << "\n";
@@ -611,6 +626,12 @@ void usMetaHeaderParser::setHeightResolution(const double heightResolution) { m_
 * @param widthResolution Image width resolution.
 */
 void usMetaHeaderParser::setWidthResolution(const double widthResolution) { m_widthResolution = widthResolution; }
+
+/**
+* Direction of mechanical sweeping (for 3D images with wobbling US probe).
+* @param sweepInZDirection True if sweeping in Z direction.
+*/
+void usMetaHeaderParser::setSweepInZDirection(const bool sweepInZDirection) { m_sweepInZDirection = sweepInZDirection; }
 
 /**
 * Mhd header setter (to set all information contained in the mhd file).

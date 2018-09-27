@@ -143,7 +143,7 @@ public:
   usImagePreScan3D();
   // All parameters initialisation constructors
   usImagePreScan3D(const usImage3D<Type> &image, const usImagePreScanSettings &preScanSettings,
-                   const usMotorSettings &motorSettings);
+                   const usMotorSettings &motorSettings, bool sweepInZDirection);
   // usImagePreScan3D copy constructor
   usImagePreScan3D(const usImagePreScan3D &other);
 
@@ -167,6 +167,12 @@ public:
 
   // Filtering before calling vpImage::resize() to update scanLineNumber
   void resize(unsigned int height, unsigned int width, unsigned int numberOfFrames);
+
+  bool getSweepInZDirection() const;
+  void setSweepInZDirection(bool sweepInZDirection);
+
+private:
+  bool m_sweepInZDirection;
 };
 
 /**
@@ -185,8 +191,8 @@ usImagePreScan3D<Type>::usImagePreScan3D() : usImage3D<Type>(), usImagePreScanSe
 */
 template <class Type>
 usImagePreScan3D<Type>::usImagePreScan3D(const usImage3D<Type> &image, const usImagePreScanSettings &preScanSettings,
-                                         const usMotorSettings &motorSettings)
-  : usImage3D<Type>(image), usImagePreScanSettings(preScanSettings), usMotorSettings(motorSettings)
+                                         const usMotorSettings &motorSettings, bool sweepInZDirection)
+  : usImage3D<Type>(image), usImagePreScanSettings(preScanSettings), usMotorSettings(motorSettings), m_sweepInZDirection(sweepInZDirection)
 {
   if (image.getWidth() != preScanSettings.getScanLineNumber())
     throw(vpException(vpException::badValue, "3D pre-scan image X-size differ from transducer scan line number"));
@@ -200,7 +206,7 @@ usImagePreScan3D<Type>::usImagePreScan3D(const usImage3D<Type> &image, const usI
 */
 template <class Type>
 usImagePreScan3D<Type>::usImagePreScan3D(const usImagePreScan3D &other)
-  : usImage3D<Type>(other), usImagePreScanSettings(other), usMotorSettings(other)
+  : usImage3D<Type>(other), usImagePreScanSettings(other), usMotorSettings(other), m_sweepInZDirection(other.m_sweepInZDirection)
 {
 }
 
@@ -222,6 +228,9 @@ template <class Type> usImagePreScan3D<Type> &usImagePreScan3D<Type>::operator=(
 
   // for motor settings
   usMotorSettings::operator=(other);
+  
+  // for mechanical sweeping direction
+  m_sweepInZDirection = other.m_sweepInZDirection;
 
   return *this;
 }
@@ -232,7 +241,7 @@ template <class Type> usImagePreScan3D<Type> &usImagePreScan3D<Type>::operator=(
 template <class Type> bool usImagePreScan3D<Type>::operator==(const usImagePreScan3D<Type> &other)
 {
   return (usImage3D<Type>::operator==(other) && usImagePreScanSettings::operator==(other) &&
-          usMotorSettings::operator==(other));
+          usMotorSettings::operator==(other) && m_sweepInZDirection==other.m_sweepInZDirection);
 }
 
 /**
@@ -241,7 +250,7 @@ template <class Type> bool usImagePreScan3D<Type>::operator==(const usImagePreSc
 template <class Type> std::ostream &operator<<(std::ostream &out, const usImagePreScan3D<Type> &other)
 {
   return out << static_cast<const usImage3D<Type> &>(other) << static_cast<const usImagePreScanSettings &>(other)
-             << static_cast<const usMotorSettings &>(other);
+             << static_cast<const usMotorSettings &>(other) << "sweep in Z direction : " << other.getSweepInZDirection() << std::endl;
 }
 
 /**
@@ -355,5 +364,18 @@ template <class Type> void usImagePreScan3D<Type>::getFrame(usImagePreScan2D<Typ
     }
   }
 }
+
+/**
+* Get the direction of the mechanical sweeping (along Z axis or not).
+* @return bool to know if the mechanical is in the Z direction.
+*/
+template <class Type> bool usImagePreScan3D<Type>::getSweepInZDirection() const { return m_sweepInZDirection; }
+
+/**
+* Set the direction of the mechanical sweeping (along Z axis or not).
+* @return
+*/
+template <class Type> void usImagePreScan3D<Type>::setSweepInZDirection(bool sweepInZDirection) { m_sweepInZDirection = sweepInZDirection; }
+
 
 #endif // __usImagePreScan3D_h_

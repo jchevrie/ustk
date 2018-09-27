@@ -77,6 +77,7 @@ public:
     CODE_XML_FRAME_PITCH,
     CODE_XML_MOTOR_RADIUS,
     CODE_XML_MOTOR_TYPE,
+    CODE_XML_SWEEP_IN_Z_DIRECTION,
     CODE_XML_AXIAL_RESOLUTION,
     CODE_XML_SAMPLING_FREQUENCY,
     CODE_XML_TRANSMIT_FREQUENCY,
@@ -111,6 +112,7 @@ public:
   double getSpacingY() const { return m_spacingY; }
   double getSpacingZ() const { return m_spacingZ; }
   double getWidthResolution() const { return m_widthResolution; }
+  bool getSweepInZDirection() const { return m_sweepInZDirection; }
   usTransducerSettings getTransducerSettings() const { return m_transducerSettings; }
 
   bool isImage3D() const { return m_is_3D; }
@@ -149,6 +151,7 @@ public:
     m_spacingY = spacingY;
     m_spacingZ = spacingZ;
   }
+  void setSweepInZDirection(bool sweepInZDirection) { m_sweepInZDirection = sweepInZDirection; }
   void setTransducerSettings(const usTransducerSettings transducerSettings);
 
 private:
@@ -169,6 +172,8 @@ private:
 
   // for 3D
   usMotorSettings m_motorSettings;
+  
+  bool m_sweepInZDirection;
 
   std::string m_imageFileName;
 

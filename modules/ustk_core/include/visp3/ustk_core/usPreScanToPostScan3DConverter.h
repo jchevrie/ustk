@@ -151,7 +151,6 @@ protected:
 
   double m_downSamplingFactor;
   double m_resolution;
-  bool m_SweepInZdirection;
 
   unsigned int m_nbX;
   unsigned int m_nbY;
@@ -172,8 +171,6 @@ public:
   usConverterOptimizationMethod setConverterOptimizationMethod() const {return m_converterOptimizationMethod;}
   
   double getResolution() const { return m_resolution; }
-
-  void SweepInZdirection(bool flag) { m_SweepInZdirection = flag; }
 
 private:
   void convertPreScanCoordToPostScanCoord(double i_preScan, double j_preScan, double k_preScan,

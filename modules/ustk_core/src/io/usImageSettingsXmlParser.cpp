@@ -54,6 +54,7 @@ usImageSettingsXmlParser::usImageSettingsXmlParser()
   nodeMap["frame_pitch"] = CODE_XML_FRAME_PITCH;
   nodeMap["motor_radius"] = CODE_XML_MOTOR_RADIUS;
   nodeMap["motor_type"] = CODE_XML_MOTOR_TYPE;
+  nodeMap["sweep_in_Z_direction"] = CODE_XML_SWEEP_IN_Z_DIRECTION;
   nodeMap["axial_resolution"] = CODE_XML_AXIAL_RESOLUTION;
   nodeMap["height_resolution"] = CODE_XML_HEIGHT_RESOLUTION;
   nodeMap["sampling_frequency"] = CODE_XML_SAMPLING_FREQUENCY;
@@ -79,6 +80,7 @@ usImageSettingsXmlParser &usImageSettingsXmlParser::operator=(const usImageSetti
   m_transducerSettings = twinparser.getTransducerSettings();
   m_imageFileName = twinparser.getImageFileName();
   m_motorSettings = twinparser.getMotorSettings();
+  m_sweepInZDirection = twinparser.getSweepInZDirection();
   m_image_type = twinparser.getImageType();
   m_is_3D = twinparser.isImage3D();
   m_widthResolution = twinparser.getWidthResolution();
@@ -226,6 +228,9 @@ void usImageSettingsXmlParser::readMainClass(xmlDocPtr doc, xmlNodePtr node)
             throw(vpException(vpException::fatalError, std::string("unknown image type in xml file")));
           value = "";
           break;
+        case CODE_XML_SWEEP_IN_Z_DIRECTION:
+          this->m_sweepInZDirection = xmlReadBoolChild(doc, dataNode);
+          break;
         case CODE_XML_ASSOCIATED_IMAGE_FILE_NAME:
           this->m_imageFileName = xmlReadStringChild(doc, dataNode);
           break;
@@ -303,6 +308,7 @@ void usImageSettingsXmlParser::writeMainClass(xmlNodePtr node)
     } else if (m_motorSettings.getMotorType() == usMotorSettings::RotationalMotor) {
       xmlWriteStringChild(node, "motor_type", std::string("rotational_motor"));
     }
+    xmlWriteDoubleChild(node, "sweep_in_Z_direction", m_sweepInZDirection);
   }
   if (m_is_sequence) {
     std::cout << "writing sequence parameters" << std::endl;

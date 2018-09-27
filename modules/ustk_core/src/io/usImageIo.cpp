@@ -534,6 +534,7 @@ void usImageIo::write(const usImagePreScan3D<unsigned char> &preScanImage, const
     usMetaHeaderParser mhdParser;
     mhdParser.setMHDHeader(header);
     mhdParser.setAxialResolution(preScanImage.getAxialResolution());
+    mhdParser.setSweepInZDirection(preScanImage.getSweepInZDirection());
     mhdParser.parse();
 
     // filling raw
@@ -582,6 +583,7 @@ void usImageIo::read(usImagePreScan3D<unsigned char> &preScanImage, const std::s
     usMotorSettings motorSettings = sequenceReader.getXmlParser().getMotorSettings();
     motorSettings.setFrameNumber(sequenceReader.getFrameCount());
     preScanImage.setMotorSettings(motorSettings);
+    preScanImage.setSweepInZDirection(sequenceReader.getXmlParser().getSweepInZDirection());
 
 #else
     throw(vpException(vpException::fatalError, "Requires xml2 library"));
@@ -619,6 +621,8 @@ void usImageIo::read(usImagePreScan3D<unsigned char> &preScanImage, const std::s
     motorSettings.setMotorType(mhdHeader.motorType);
     motorSettings.setFrameNumber(mhdHeader.dim[2]);
     preScanImage.setMotorSettings(motorSettings);
+
+    preScanImage.setSweepInZDirection(mhdParser.getSweepInZDirection());
 
     // data parsing
     usRawFileParser rawParser;

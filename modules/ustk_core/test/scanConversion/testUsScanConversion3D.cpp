@@ -56,7 +56,7 @@ int main(int argc, const char **argv)
   // Fill pre-scan volume with some data
 
   usImage3D<unsigned char> I(sampleNumber, scanLineNumber, frameNumber);
-  for(int k=0 ; k<frameNumber ; k+=2 ) for(int j=0 ; j<scanLineNumber ; j++ ) for(int i=0 ; i<sampleNumber ; i++ ) I(i,j,k,255); 
+  for(unsigned int k=0 ; k<frameNumber ; k+=2 ) for(unsigned int j=0 ; j<scanLineNumber ; j++ ) for(unsigned int i=0 ; i<sampleNumber ; i++ ) I(i,j,k,255);
   preScan.setData(I);
   
   // Fill pre-scan volume info
@@ -109,12 +109,12 @@ int main(int argc, const char **argv)
       std::cout << "Timing: " << vpTime::measureTimeMs()-t << std::endl;
       std::cout << "---- Volume conversion:" << std::endl;
       std::cout << "-- Forward wobbling:" << std::endl;
-      converter.SweepInZdirection(true);
+      preScan.setSweepInZDirection(true);
       t = vpTime::measureTimeMs();
       converter.convert(postscan[2*i], preScan);
       std::cout << "Timing: " << vpTime::measureTimeMs()-t <<  std::endl;
       std::cout << "-- Backward wobbling:" << std::endl;
-      converter.SweepInZdirection(false);
+      preScan.setSweepInZDirection(false);
       t = vpTime::measureTimeMs();
       converter.convert(postscan[2*i+1], preScan);
       std::cout << "Timing: " << vpTime::measureTimeMs()-t <<  std::endl;

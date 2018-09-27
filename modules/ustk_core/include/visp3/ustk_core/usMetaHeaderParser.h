@@ -116,6 +116,7 @@ public:
   std::string getRawFileName() const { return header.rawFileName; }
   usTransducerSettings getTransducerSettings() const { return m_transducerSettings; }
   double getWidthResolution() const { return m_widthResolution; }
+  bool getSweepInZDirection() const { return m_sweepInZDirection; }
 
   // comparison
   bool operator==(usMetaHeaderParser const &other);
@@ -135,6 +136,7 @@ public:
   void setRawFileName(const std::string &rawFileName);
   void setTransducerSettings(const usTransducerSettings &transducerSettings);
   void setWidthResolution(const double widthResolution);
+  void setSweepInZDirection(const bool sweepInZDirection);
 
 private:
   usTransducerSettings m_transducerSettings;
@@ -142,6 +144,7 @@ private:
   double m_axialResolution;
   double m_heightResolution;
   double m_widthResolution;
+  bool m_sweepInZDirection;
 
   MHDHeader header;
   std::map<std::string, int> imageTypeMap;

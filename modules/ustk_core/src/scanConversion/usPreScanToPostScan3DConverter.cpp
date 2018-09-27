@@ -47,7 +47,7 @@ extern void GPUDirectConversionWrapper(unsigned char *dataPost, const unsigned c
 usPreScanToPostScan3DConverter::usPreScanToPostScan3DConverter()
   : m_converterOptimizationMethod(SINGLE_THREAD_REDUCED_LOOKUP_TABLE),
     m_conversionOptimizationMethodUsedAtInit(SINGLE_THREAD_DIRECT_CONVERSION), m_GPULookupTables{NULL, NULL}, m_GPULookupTablesSize{0,0}, m_VpreScan(), m_downSamplingFactor(1),
-    m_resolution(), m_SweepInZdirection(true), m_initDone(false)
+    m_resolution(), m_initDone(false)
 {
 }
 
@@ -58,7 +58,7 @@ usPreScanToPostScan3DConverter::usPreScanToPostScan3DConverter()
  */
 usPreScanToPostScan3DConverter::usPreScanToPostScan3DConverter(const usImagePreScan3D<unsigned char> &preScanImage,
                                                                double down)
-  : m_VpreScan(), m_downSamplingFactor(1), m_resolution(), m_SweepInZdirection(true), m_initDone(false)
+  : m_VpreScan(), m_downSamplingFactor(1), m_resolution(), m_initDone(false)
 {
   this->init(preScanImage, down);
 }
@@ -75,7 +75,7 @@ void usPreScanToPostScan3DConverter::init(const usImagePreScan3D<unsigned char> 
                       "3D scan-conversion available only for convex transducer and tilting motor"));
 
   if (down <= 0)
-    throw(vpException(vpException::badValue, "downsampling factor should b positive"));
+    throw(vpException(vpException::badValue, "downsampling factor should be positive"));
 
   // compare pre-scan image parameters, to avoid recomputing all the init process if parameters are the same
   if (((usMotorSettings)m_VpreScan) == ((usMotorSettings)preScanImage) &&
@@ -452,6 +452,7 @@ void usPreScanToPostScan3DConverter::convert(usImagePostScan3D<unsigned char> &p
   postScanImage.initData(0);
   (usTransducerSettings&)postScanImage = (const usTransducerSettings&)preScanImage;
   (usMotorSettings&)postScanImage = (const usMotorSettings&)preScanImage;
+  bool sweepInZdirection = preScanImage.getSweepInZDirection();
             
   unsigned char *dataPost = postScanImage.getData();
   const unsigned char *dataPre = preScanImage.getConstData();
@@ -484,7 +485,7 @@ void usPreScanToPostScan3DConverter::convert(usImagePostScan3D<unsigned char> &p
           double zz = m_resolution * z - zmax;
           double i, j, k;
           usPreScanToPostScan3DConverter::convertPostScanCoordToPreScanCoord(yy, xx, zz, &j, &i, &k,
-                                                                             m_SweepInZdirection);
+                                                                             sweepInZdirection);
 
           double ii = floor(i);
           double jj = floor(j);
@@ -557,7 +558,7 @@ void usPreScanToPostScan3DConverter::convert(usImagePostScan3D<unsigned char> &p
           double zz = m_resolution * z - zmax;
           double i, j, k;
           usPreScanToPostScan3DConverter::convertPostScanCoordToPreScanCoord(yy, xx, zz, &j, &i, &k,
-                                                                             m_SweepInZdirection);
+                                                                             sweepInZdirection);
 
           double ii = floor(i);
           double jj = floor(j);
@@ -613,7 +614,7 @@ void usPreScanToPostScan3DConverter::convert(usImagePostScan3D<unsigned char> &p
     break;
   }
   case SINGLE_THREAD_FULL_LOOKUP_TABLE: {
-    const unsigned int d = m_SweepInZdirection ? 0 : 1;
+    const unsigned int d = sweepInZdirection ? 0 : 1;
     for (int i = (int)m_lookupTables[d].size() - 1; i >= 0; i--) {
       double v = 0;
       for (int j = 0; j < 8; j++)
@@ -623,7 +624,7 @@ void usPreScanToPostScan3DConverter::convert(usImagePostScan3D<unsigned char> &p
     break;
   }
   case MULTI_THREAD_FULL_LOOKUP_TABLE: {
-    const unsigned int d = m_SweepInZdirection ? 0 : 1;
+    const unsigned int d = sweepInZdirection ? 0 : 1;
 #ifdef VISP_HAVE_OPENMP
 #pragma omp parallel for
 #endif
@@ -646,7 +647,7 @@ void usPreScanToPostScan3DConverter::convert(usImagePostScan3D<unsigned char> &p
     break;
   }
   case SINGLE_THREAD_REDUCED_LOOKUP_TABLE: {
-    const unsigned int d = m_SweepInZdirection ? 0 : 1;
+    const unsigned int d = sweepInZdirection ? 0 : 1;
     unsigned int X = m_VpreScan.getWidth();
     unsigned int Y = m_VpreScan.getHeight();
     unsigned int XY = X * Y;
@@ -678,7 +679,7 @@ void usPreScanToPostScan3DConverter::convert(usImagePostScan3D<unsigned char> &p
     break;
   }
   case MULTI_THREAD_REDUCED_LOOKUP_TABLE: {
-    const unsigned int d = m_SweepInZdirection ? 0 : 1;
+    const unsigned int d = sweepInZdirection ? 0 : 1;
     unsigned int X = m_VpreScan.getWidth();
     unsigned int Y = m_VpreScan.getHeight();
     unsigned int XY = X * Y;
