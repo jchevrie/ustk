@@ -126,6 +126,9 @@ public:
     vpColVector computeMeasureFromSigmaPoint(const vpColVector &sigmaPoint);
     double stateNorm(const vpColVector& state) const;
     vpColVector measureLog(const vpColVector& measure, const vpColVector &measureCenter) const;
+    vpColVector stateLog(const vpColVector &state, const vpColVector &stateCenter) const;
+    vpColVector stateExp(const vpColVector &state, const vpColVector &stateCenter) const;
+    vpMatrix parallelTransport(const vpMatrix &covarianceMatrix, const vpColVector &previousState, const vpColVector &newState) const;
 };
 
 #endif // __usTissueTranslationEstimatorUKF_h_

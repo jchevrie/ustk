@@ -148,6 +148,7 @@ public:
     virtual vpColVector measureLog(const vpColVector &measure, const vpColVector &measureCenter) const;
     virtual vpColVector stateLog(const vpColVector &state, const vpColVector &stateCenter) const;
     virtual vpColVector stateExp(const vpColVector &state, const vpColVector &stateCenter) const;
+    virtual vpMatrix parallelTransport(const vpMatrix &covarianceMatrix, const vpColVector &previousState, const vpColVector &newState) const;
 };
 
 #endif // __usUnscentedKalmanFilter_h_

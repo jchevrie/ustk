@@ -559,10 +559,11 @@ bool usUnscentedKalmanFilter::updateState()
 
         vpColVector Innov = this->measureLog(m_measure, this->computeMeasureFromSigmaPoint(this->stateLog(m_state, m_state))) - m_measureSigmaMean;
 
+        vpColVector previousState = m_state;
         m_state = this->stateExp(m_stateSigmaMean + kalmanGain * Innov, m_state);
 
-        m_stateCovarianceMatrix = m_stateSigmaCovarianceMatrix - kalmanGain * m_measureSigmaCovarianceMatrix * kalmanGain.t();
-    }
+        m_stateCovarianceMatrix = this->parallelTransport(m_stateSigmaCovarianceMatrix - kalmanGain * m_measureSigmaCovarianceMatrix * kalmanGain.t(), previousState, m_state);
+  }
     catch (std::exception &e)
     {
         std::cout << "usUnscentedKalmanFilter::updateState failed: " << e.what() << std::endl;
@@ -610,5 +611,12 @@ vpColVector usUnscentedKalmanFilter::stateExp(const vpColVector &state, const vp
 {
     (void)stateCenter; // unused variable 
     return state;
+}
+
+vpMatrix usUnscentedKalmanFilter::parallelTransport(const vpMatrix &covarianceMatrix, const vpColVector &previousState, const vpColVector &newState) const
+{
+    (void)previousState; // unused variable 
+    (void)newState; // unused variable 
+    return covarianceMatrix;
 }
 

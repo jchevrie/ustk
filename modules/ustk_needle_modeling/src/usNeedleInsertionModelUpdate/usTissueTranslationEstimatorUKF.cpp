@@ -176,7 +176,7 @@ void usTissueTranslationEstimatorUKF::setStateDynamicsType(usTissueTranslationEs
         }
         case usTissueTranslationEstimatorUKF::SINUSOIDAL_POSITION:
         {
-            this->setStateDimension(11);
+            this->setStateDimension(8);
             break;
         }
     }
@@ -222,20 +222,53 @@ void usTissueTranslationEstimatorUKF::setLastMeasureTime(double time)
 void usTissueTranslationEstimatorUKF::setCurrentNeedle(const usNeedleInsertionModelRayleighRitzSpline& needle)
 {
     m_needle = needle;
-    m_state.insert(0, vpColVector(m_needle.accessTissue().getPose(), 0,3));
+    switch(m_stateDynamicsType)
+    {
+        case usTissueTranslationEstimatorUKF::CONSTANT_POSITION:
+        case usTissueTranslationEstimatorUKF::CONSTANT_VELOCITY:
+        {
+            m_state.insert(0, vpColVector(m_needle.accessTissue().getPose(), 0,3));
+            break;
+        }
+        case usTissueTranslationEstimatorUKF::SINUSOIDAL_POSITION:
+        {
+            break;
+        }
+    }
 }
 
 void usTissueTranslationEstimatorUKF::applyStateToNeedle(usNeedleInsertionModelRayleighRitzSpline& needle) const
 {
     vpPoseVector p(needle.accessTissue().accessSurface().getPose());
-    for(int i=0 ; i<3 ; i++) p[i] = m_state[i];
+    
+    switch(m_stateDynamicsType)
+    {
+        case usTissueTranslationEstimatorUKF::CONSTANT_POSITION:
+        case usTissueTranslationEstimatorUKF::CONSTANT_VELOCITY:
+        {
+            for(int i=0 ; i<3 ; i++) p[i] = m_state[i];
+            break;
+        }
+        case usTissueTranslationEstimatorUKF::SINUSOIDAL_POSITION:
+        {
+            for(int i=0 ; i<3 ; i++)
+            {
+                p[i] = m_state[i] + m_state[i+3] * sin(2*M_PI * m_state[6] * (m_lastMeasureTime + m_propagationTime) + m_state[7]);
+            }      
+            break;
+        }
+    }
+    
     needle.accessTissue().setPose(p);
 }
 
 bool usTissueTranslationEstimatorUKF::checkConsistency(const vpColVector &measure)
 {
     if(!m_needle.IsNeedleInserted()) return false;
-    if((vpColVector(m_state, 0,3) - vpColVector(m_needle.accessTissue().getPose(), 0,3)).euclideanNorm() > std::numeric_limits<double>::epsilon()) std::cout << "usTissueTranslationEstimatorUKF::checkConsistency: the state does not correspond to the needle model, make sure you used the method 'setCurrentNeedle' to initialize the state" << std::endl;
+    if(m_stateDynamicsType==usTissueTranslationEstimatorUKF::CONSTANT_POSITION || m_stateDynamicsType==usTissueTranslationEstimatorUKF::CONSTANT_VELOCITY)
+    {
+        if((vpColVector(m_state, 0,3) - vpColVector(m_needle.accessTissue().getPose(), 0,3)).euclideanNorm() > std::numeric_limits<double>::epsilon()) std::cout << "usTissueTranslationEstimatorUKF::checkConsistency: the state does not correspond to the needle model, make sure you used the method 'setCurrentNeedle' to initialize the state" << std::endl;
+    }
     
     if(m_measureType == usTissueTranslationEstimatorUKF::NEEDLE_BODY_POINTS)
     {
@@ -275,11 +308,22 @@ void usTissueTranslationEstimatorUKF::computeProcessNoiseCovarianceMatrix()
         }
         case usTissueTranslationEstimatorUKF::SINUSOIDAL_POSITION:
         {
-            m_processNoiseCovarianceMatrix.resize(11,11);
-            m_processNoiseCovarianceMatrix.insert(m_var_process_p * normalizedCovarianceMatrix, 3,3);
-            m_processNoiseCovarianceMatrix.insert(m_var_process_a * normalizedCovarianceMatrix, 6,6);
-            m_processNoiseCovarianceMatrix[9][9] = m_var_process_f;
-            m_processNoiseCovarianceMatrix[10][10] = m_var_process_phi;
+            m_processNoiseCovarianceMatrix.resize(8,8);
+            m_processNoiseCovarianceMatrix.insert(m_var_process_p * normalizedCovarianceMatrix, 0,0);
+            vpMatrix M(3,3,0);
+            for(int i=0 ; i<3 ; i++)
+            {
+                if(m_state[i+3] > sqrt(std::numeric_limits<double>::epsilon())) M[i][i] = 1. / m_state[i+3];
+                else M[i][i] = 1. / sqrt(std::numeric_limits<double>::epsilon());
+            }
+            vpMatrix Cov = M * m_var_process_a * normalizedCovarianceMatrix * M.t();
+            for(int i=0 ; i<3 ; i++)
+              for(int j=0 ; j<3 ; j++)
+                Cov[i][j] = log(1 + Cov[i][j]);
+            m_processNoiseCovarianceMatrix.insert(Cov, 3,3);
+            if(m_state[6] > sqrt(std::numeric_limits<double>::epsilon())) m_processNoiseCovarianceMatrix[6][6] = log(1 + m_var_process_f / vpMath::sqr(m_state[6]));
+            else m_processNoiseCovarianceMatrix[6][6] = m_var_process_f / std::numeric_limits<double>::epsilon();            
+            m_processNoiseCovarianceMatrix[7][7] = m_var_process_phi;
             break;
         }
     }
@@ -335,13 +379,8 @@ vpColVector usTissueTranslationEstimatorUKF::propagateSigmaPoint(const vpColVect
         case usTissueTranslationEstimatorUKF::SINUSOIDAL_POSITION:
         {
             vpColVector propagatedSigmaPoint(sigmaPoint);
-            if(propagatedSigmaPoint[9] < 0) propagatedSigmaPoint[9] = 0;
-            for(int i=0 ; i<3 ; i++)
-			{
-                if(propagatedSigmaPoint[i+6] < 0) propagatedSigmaPoint[i+6] = 0;
-
-				propagatedSigmaPoint[i] = propagatedSigmaPoint[i+3] + propagatedSigmaPoint[i+6] * sin(2*M_PI * propagatedSigmaPoint[9] * (m_lastMeasureTime + m_propagationTime) + propagatedSigmaPoint[10]);
-            }
+            //if(propagatedSigmaPoint[6] < 0) propagatedSigmaPoint[6] = 0;
+            //for(int i=0 ; i<3 ; i++) if(propagatedSigmaPoint[i+3] < 0) propagatedSigmaPoint[i+3] = 0;
             return propagatedSigmaPoint;
         }
         default:
@@ -353,25 +392,49 @@ vpColVector usTissueTranslationEstimatorUKF::propagateSigmaPoint(const vpColVect
 
 vpColVector usTissueTranslationEstimatorUKF::computeMeasureFromSigmaPoint(const vpColVector &sigmaPoint)
 {
+    usNeedleInsertionModelRayleighRitzSpline testNeedle(m_needle);
+    
+    vpPoseVector tissuePose(testNeedle.accessTissue().getPose());
+    
+    switch(m_stateDynamicsType)
+    {
+        case usTissueTranslationEstimatorUKF::CONSTANT_POSITION:
+        case usTissueTranslationEstimatorUKF::CONSTANT_VELOCITY:
+        {
+            for(int i=0 ; i<3 ; i++) tissuePose[i] = sigmaPoint[i];
+            break;
+        }
+        case usTissueTranslationEstimatorUKF::SINUSOIDAL_POSITION:
+        {
+            vpColVector state = this->stateExp(sigmaPoint, m_state);
+            for(int i=0 ; i<3 ; i++)
+            {
+                tissuePose[i] = state[i] + state[i+3] * sin(2*M_PI * state[6] * (m_lastMeasureTime + m_propagationTime) + state[7]);
+            }
+            break;
+        }
+        default:
+        {
+            break;
+        }
+    }
+    
+    testNeedle.accessTissue().setPose(tissuePose);
+    testNeedle.updateState();
+    
     switch(m_measureType)
     {
         case usTissueTranslationEstimatorUKF::NEEDLE_BODY_POINTS:
         {
             int nbPoints = m_measure.size()/3;
-            
-            usNeedleInsertionModelRayleighRitzSpline testNeedle(m_needle);
-        
+
             std::vector<int> index(nbPoints);
             std::vector<double> l(nbPoints);
             for(int i=0 ; i<nbPoints ; i++)
             {
-                usGeometryTools::projectPointOnCurve(vpColVector(m_measure, 3*i,3), testNeedle.accessNeedle(), -1, &(index.at(i)), &(l.at(i)));
+                usGeometryTools::projectPointOnCurve(vpColVector(m_measure, 3*i,3), m_needle.accessNeedle(), -1, &(index.at(i)), &(l.at(i)));
             }
-            
-            vpPoseVector p(testNeedle.accessTissue().getPose());
-            testNeedle.accessTissue().setPose(vpPoseVector(sigmaPoint[0], sigmaPoint[1], sigmaPoint[2], p[3], p[4], p[5]));
-            testNeedle.updateState();
-        
+
             vpColVector measure(m_measure.size());
             for(int i=0 ; i<nbPoints ; i++) measure.insert(3*i, testNeedle.accessNeedle().accessSegment(index.at(i)).getPoint(l.at(i)));            
             
@@ -379,12 +442,6 @@ vpColVector usTissueTranslationEstimatorUKF::computeMeasureFromSigmaPoint(const 
         }
         case usTissueTranslationEstimatorUKF::TIP_POSITION_AND_DIRECTION:
         {
-            usNeedleInsertionModelRayleighRitzSpline testNeedle(m_needle);
-        
-            vpPoseVector p(testNeedle.accessTissue().getPose());
-            testNeedle.accessTissue().setPose(vpPoseVector(sigmaPoint[0], sigmaPoint[1], sigmaPoint[2], p[3], p[4], p[5]));
-            testNeedle.updateState();
-    
             vpColVector measure(6);
             measure.insert(0, testNeedle.accessNeedle().getTipPosition());
             measure.insert(3, testNeedle.accessNeedle().getTipDirection());
@@ -393,12 +450,6 @@ vpColVector usTissueTranslationEstimatorUKF::computeMeasureFromSigmaPoint(const 
         }
         case usTissueTranslationEstimatorUKF::BASE_FORCE_TORQUE:
         {
-            usNeedleInsertionModelRayleighRitzSpline testNeedle(m_needle);
-
-            vpPoseVector p(testNeedle.accessTissue().getPose());
-            testNeedle.accessTissue().setPose(vpPoseVector(sigmaPoint[0], sigmaPoint[1], sigmaPoint[2], p[3], p[4], p[5]));
-            testNeedle.updateState();
-    
             vpColVector measure(testNeedle.accessNeedle().getBaseStaticTorsor());
     
             return measure;
@@ -424,7 +475,8 @@ double usTissueTranslationEstimatorUKF::stateNorm(const vpColVector &state) cons
         }
         case usTissueTranslationEstimatorUKF::SINUSOIDAL_POSITION:
         {
-            return vpColVector(state, 0,3).euclideanNorm() + vpColVector(state, 3,3).euclideanNorm() + vpColVector(state, 6,3).euclideanNorm();
+            vpColVector realState = this->stateExp(state, m_state);
+            return vpColVector(realState, 0,3).euclideanNorm() + vpColVector(realState, 3,3).euclideanNorm();
         }  
         default:
         {
@@ -462,4 +514,88 @@ vpColVector usTissueTranslationEstimatorUKF::measureLog(const vpColVector& measu
             return measure;
         }
     }
+}
+
+vpColVector usTissueTranslationEstimatorUKF::stateLog(const vpColVector &state, const vpColVector &stateCenter) const
+{
+  if(m_stateDynamicsType==usTissueTranslationEstimatorUKF::SINUSOIDAL_POSITION) {
+    vpColVector logState(8);
+    for(int i=0 ; i<3 ; i++) logState[i] = state[i];
+    for(int i=3 ; i<7 ; i++) {
+      if(state[i] > 0) {
+        if(stateCenter[i] > state[i]*std::numeric_limits<double>::epsilon()) 
+          logState[i] = log(state[i] / stateCenter[i]);
+        else
+          logState[i] = log(1. / std::numeric_limits<double>::epsilon());
+      }
+      else {
+        if(stateCenter[i] > 0)
+          logState[i] = log(std::numeric_limits<double>::epsilon());
+        else
+          logState[i] = 0.;
+      }
+    }
+    logState[7] = state[7] - stateCenter[7];
+    return logState;
+  }
+  else return state;
+}
+
+vpColVector usTissueTranslationEstimatorUKF::stateExp(const vpColVector &state, const vpColVector &stateCenter) const
+{
+  if(m_stateDynamicsType==usTissueTranslationEstimatorUKF::SINUSOIDAL_POSITION) {
+    vpColVector expState(8);
+    for(int i=0 ; i<3 ; i++)
+      expState[i] = state[i];
+    for(int i=3 ; i<7 ; i++) {
+      if(stateCenter[i] > std::numeric_limits<double>::epsilon())
+        expState[i] = stateCenter[i] * exp(state[i]);
+      else
+        expState[i] = std::numeric_limits<double>::epsilon() * exp(state[i]);
+    }
+    for(int i=3 ; i<6 ; i++) {
+      if(expState[i] > 0.02) expState[i] = 0.02;
+    }
+    if(expState[6] > 1) expState[6] = 1;
+    expState[7] = stateCenter[7] + state[7];
+    while(expState[7] > M_PI) expState[7] -= 2*M_PI;
+    while(expState[7] <= -M_PI) expState[7] += 2*M_PI;
+    return expState;
+  }
+  else return state;
+}
+
+vpMatrix usTissueTranslationEstimatorUKF::parallelTransport(const vpMatrix &covarianceMatrix, const vpColVector &previousState, const vpColVector &newState) const
+{
+  if(m_stateDynamicsType==usTissueTranslationEstimatorUKF::SINUSOIDAL_POSITION) {
+
+    vpColVector conversionGains(8);
+    
+    for(int i=0 ; i<3 ; i++) conversionGains[i] = 1;
+    
+    for(int i=3 ; i<7 ; i++) 
+    {
+      if(newState[i] > previousState[i] * sqrt(std::numeric_limits<double>::epsilon()))
+      {
+        if(log(1 + (exp(covarianceMatrix[i][i]) - 1) * vpMath::sqr(previousState[i]) / vpMath::sqr(newState[i])) * std::numeric_limits<double>::epsilon() < covarianceMatrix[i][i])
+          conversionGains[i] = log(1 + (exp(covarianceMatrix[i][i]) - 1) * vpMath::sqr(previousState[i]) / vpMath::sqr(newState[i])) / covarianceMatrix[i][i];
+        else
+          conversionGains[i] = 0;
+      }
+      else {
+        if(log(1 + (exp(covarianceMatrix[i][i]) - 1) / std::numeric_limits<double>::epsilon()) * std::numeric_limits<double>::epsilon() < covarianceMatrix[i][i])
+          conversionGains[i] = log(1 + (exp(covarianceMatrix[i][i]) - 1) / std::numeric_limits<double>::epsilon()) / covarianceMatrix[i][i];
+        else
+          conversionGains[i] = 0;
+      }
+    }
+
+    conversionGains[7] = 1;
+    
+    vpMatrix conversionMatrix;
+    conversionMatrix.diag(conversionGains);
+    vpMatrix transportedCovMatrix(conversionMatrix*covarianceMatrix*conversionMatrix.t());
+    return transportedCovMatrix;
+  }
+  else return covarianceMatrix;
 }
