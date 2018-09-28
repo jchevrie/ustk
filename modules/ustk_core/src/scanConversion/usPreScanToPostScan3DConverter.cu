@@ -387,7 +387,7 @@ void usPreScanToPostScan3DConverter::GPUDirectConversion(unsigned char *dataPost
 
     dim3 threadsPerBlock(8, 8, 8);
     dim3 numBlocks((m_nbX+threadsPerBlock.x-1)/threadsPerBlock.x, (m_nbY+threadsPerBlock.y-1)/threadsPerBlock.y, (m_nbZ+threadsPerBlock.z-1)/threadsPerBlock.z);
-    kernelPostScanVoxelDirect<<<numBlocks,threadsPerBlock>>>(dataPostDevice, dataPreDevice, m_nbX, m_nbY, m_nbZ, X, Y, Z, m_resolution, xmax, ymin, zmax, m_VpreScan.getFrameNumber(), m_VpreScan.getScanLineNumber(), m_VpreScan.getTransducerRadius(), m_VpreScan.getMotorRadius(), m_VpreScan.getScanLinePitch(), m_VpreScan.getAxialResolution(), m_VpreScan.getFramePitch(), m_SweepInZdirection);
+    kernelPostScanVoxelDirect<<<numBlocks,threadsPerBlock>>>(dataPostDevice, dataPreDevice, m_nbX, m_nbY, m_nbZ, X, Y, Z, m_resolution, xmax, ymin, zmax, m_VpreScan.getFrameNumber(), m_VpreScan.getScanLineNumber(), m_VpreScan.getTransducerRadius(), m_VpreScan.getMotorRadius(), m_VpreScan.getScanLinePitch(), m_VpreScan.getAxialResolution(), m_VpreScan.getFramePitch(), m_VpreScan.getSweepInZDirection());
 
     codePost = cudaMemcpy(dataPost, dataPostDevice, sizePost, cudaMemcpyDeviceToHost);
     if(codePost != cudaSuccess) throw vpException(vpException::memoryAllocationError, "usPreScanToPostScan3DConverter::GPUDirectConversionWrapper: GPU post-scan memory copy error: %s", cudaGetErrorString(codePost));
@@ -479,7 +479,7 @@ void usPreScanToPostScan3DConverter::GPUFullLookupTableConversion(unsigned char 
     if(codePre != cudaSuccess) {std::cout << codePre << std::endl;
 throw vpException(vpException::memoryAllocationError, "usPreScanToPostScan3DConverter::GPUFullLookupTableConversion: GPU pre-scan memory copy error");
 }
-    unsigned int sweepIndex = m_SweepInZdirection?0:1;
+    unsigned int sweepIndex = m_VpreScan.getSweepInZDirection()?0:1;
     dim3 threadsPerBlock(512);
     dim3 numBlocks((m_GPULookupTablesSize[sweepIndex]+threadsPerBlock.x-1)/threadsPerBlock.x);
     kernelPostScanVoxelFullLookUpTable<<<numBlocks,threadsPerBlock>>>(dataPostDevice, dataPreDevice, (const cudaVoxelWeightAndIndex*)(m_GPULookupTables[sweepIndex]), m_GPULookupTablesSize[sweepIndex]);
@@ -569,7 +569,7 @@ void usPreScanToPostScan3DConverter::GPUReducedLookupTableConversion(unsigned ch
     if(codePre != cudaSuccess) {std::cout << codePre << std::endl;
 throw vpException(vpException::memoryAllocationError, "usPreScanToPostScan3DConverter::GPUReducedLookupTableConversion: GPU pre-scan memory copy error");
 }
-    unsigned int sweepIndex = m_SweepInZdirection?0:1;
+    unsigned int sweepIndex = m_VpreScan.getSweepInZDirection()?0:1;
     dim3 threadsPerBlock(512);
     dim3 numBlocks((m_GPULookupTablesSize[sweepIndex]+threadsPerBlock.x-1)/threadsPerBlock.x);
     kernelPostScanVoxelReducedLookUpTable<<<numBlocks,threadsPerBlock>>>(dataPostDevice, dataPreDevice, (const cudaVoxelWeightAndIndexReducedMemory*)(m_GPULookupTables[sweepIndex]), m_GPULookupTablesSize[sweepIndex], X, Y);
